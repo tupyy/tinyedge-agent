@@ -3,11 +3,7 @@ package client
 import (
 	"bytes"
 	"context"
-	"crypto/ecdsa"
-	"crypto/rsa"
 	"crypto/tls"
-	"crypto/x509"
-	"encoding/pem"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -177,6 +173,10 @@ func (c *Client) GetConfiguration(ctx context.Context, deviceID string) (entity.
 	return configurationModel2Entity(data), nil
 }
 
+func (c *Client) Close(ctx context.Context) {
+	// NoOP
+}
+
 func (c *Client) do(request *http.Request) (*http.Response, error) {
 	client, err := c.getClient()
 	if err != nil {
@@ -214,7 +214,7 @@ func (c *Client) getClient() (*http.Client, error) {
 func (c *Client) createTransport() (result http.RoundTripper, err error) {
 	var tlsConfig *tls.Config
 
-	tlsConfig, err = c.createTLSConfig()
+	tlsConfig, err = c.certMananger.TLSConfig()
 
 	result = &http.Transport{
 		Proxy:                 http.ProxyFromEnvironment,
@@ -228,43 +228,4 @@ func (c *Client) createTransport() (result http.RoundTripper, err error) {
 	}
 
 	return result, err
-}
-
-func (c *Client) createTLSConfig() (*tls.Config, error) {
-	caRoot, cert, key := c.certMananger.GetCertificates()
-
-	config := tls.Config{
-		RootCAs: caRoot,
-	}
-
-	certPEM := new(bytes.Buffer)
-	err := pem.Encode(certPEM, &pem.Block{
-		Type:  "CERTIFICATE",
-		Bytes: cert.Raw,
-	})
-
-	privKeyPEM := new(bytes.Buffer)
-	switch t := key.(type) {
-	case *ecdsa.PrivateKey:
-		res, _ := x509.MarshalECPrivateKey(t)
-		_ = pem.Encode(privKeyPEM, &pem.Block{
-			Type:  "EC PRIVATE KEY",
-			Bytes: res,
-		})
-	case *rsa.PrivateKey:
-		_ = pem.Encode(privKeyPEM, &pem.Block{
-			Type:  "RSA PRIVATE KEY",
-			Bytes: x509.MarshalPKCS1PrivateKey(t),
-		})
-	}
-
-	//
-	cc, err := tls.X509KeyPair(certPEM.Bytes(), privKeyPEM.Bytes())
-	if err != nil {
-		return nil, fmt.Errorf("cannot create x509 key pair: %w", err)
-	}
-
-	config.Certificates = []tls.Certificate{cc}
-
-	return &config, nil
 }

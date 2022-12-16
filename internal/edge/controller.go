@@ -28,6 +28,9 @@ type Client interface {
 
 	// GetConfiguration get the configuration from flotta-operator
 	GetConfiguration(ctx context.Context, deviceID string) (entity.DeviceConfigurationMessage, error)
+
+	// Close connection if any.
+	Close(ctx context.Context)
 }
 
 type Controller struct {
@@ -95,7 +98,7 @@ func (c *Controller) run(ctx context.Context) {
 		case <-register:
 			zap.S().Info("Registering device")
 
-			csr, key, err := c.certManager.GenerateCSR("deviceID")
+			csr, key, err := c.certManager.GenerateCSR(config.GetDeviceID())
 			if err != nil {
 				zap.S().Errorw("Cannot generate CSR for registration", "error", err)
 				break
@@ -149,7 +152,7 @@ func (c *Controller) run(ctx context.Context) {
 				}
 
 				// reset the ticker if the heartbeat period changed.
-				if configurationMessage.Configuration.Heartbeat.Period != c.confManager.Configuration().Configuration.Heartbeat.Period {
+				if configurationMessage.Configuration.Heartbeat.Period != c.confManager.Configuration().Configuration.Heartbeat.Period && configurationMessage.Configuration.Heartbeat.Period > 0 {
 					zap.S().Infof("new heartbeat period: %s", configurationMessage.Configuration.Heartbeat.Period)
 					configuration <- configurationMessage.Configuration.Heartbeat.Period
 				}

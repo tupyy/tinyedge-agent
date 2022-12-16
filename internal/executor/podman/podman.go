@@ -111,11 +111,11 @@ func (p *podman) Remove(workloadId string) error {
 func (p *podman) Run(cgroupParent, manifestPath, authFilePath string, annotations map[string]string) ([]*PodReport, error) {
 	network := []string{DefaultNetworkName}
 	options := play.KubeOptions{
-		Authfile:     &authFilePath,
-		Network:      &network,
-		Annotations:  annotations,
-		Start:        &boolFalse,
-		CGroupParent: &cgroupParent,
+		Authfile:    &authFilePath,
+		Network:     &network,
+		Annotations: annotations,
+		Start:       &boolFalse,
+		//		CGroupParent: &cgroupParent,
 	}
 	report, err := play.Kube(p.podmanConnection, manifestPath, &options)
 	if err != nil {

@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 	config "github.com/tupyy/tinyedge-agent/configuration"
 	"github.com/tupyy/tinyedge-agent/internal/certificate"
+	grpcClient "github.com/tupyy/tinyedge-agent/internal/client/grpc"
 	httpClient "github.com/tupyy/tinyedge-agent/internal/client/http"
 	"github.com/tupyy/tinyedge-agent/internal/configuration"
 	"github.com/tupyy/tinyedge-agent/internal/edge"
@@ -32,6 +33,7 @@ var (
 	namespace             string
 	logLevel              string
 	profileManagerEnabled bool
+	useGrpc               bool
 )
 
 const (
@@ -55,10 +57,19 @@ var rootCmd = &cobra.Command{
 			panic(err)
 		}
 
-		// httpClient is a wrapper around http client which implements yggdrasil API.
-		httpClient, err := httpClient.New(config.GetServerAddress(), certManager)
-		if err != nil {
-			panic(err)
+		var client edge.Client
+		if useGrpc {
+			client, err = grpcClient.New(config.GetServerAddress(), certManager)
+			if err != nil {
+				panic(err)
+			}
+			defer client.Close(context.TODO())
+		} else {
+			// httpClient is a wrapper around http client which implements yggdrasil API.
+			client, err = httpClient.New(config.GetServerAddress(), certManager)
+			if err != nil {
+				panic(err)
+			}
 		}
 
 		confManager := configuration.New(profileManagerEnabled)
@@ -67,7 +78,7 @@ var rootCmd = &cobra.Command{
 			panic(err)
 		}
 
-		controller := edge.New(httpClient, confManager, certManager)
+		controller := edge.New(client, confManager, certManager)
 		var profileManager *profile.Manager
 		if profileManagerEnabled {
 			profileManager = profile.New(confManager.StateManagerCh)
@@ -117,11 +128,12 @@ func init() {
 	rootCmd.Flags().StringVar(&namespace, "namespace", "default", "target namespace")
 	rootCmd.Flags().StringVar(&logLevel, "log-level", "info", "log level")
 	rootCmd.Flags().BoolVar(&profileManagerEnabled, "enable-profile-manager", true, "enable profile manager")
+	rootCmd.Flags().BoolVar(&useGrpc, "use-grpc", true, "use grpc client")
 }
 
 func setupLogger() *zap.Logger {
 	loggerCfg := &zap.Config{
-		Level:    zap.NewAtomicLevelAt(zapcore.InfoLevel),
+		Level:    zap.NewAtomicLevelAt(zapcore.DebugLevel),
 		Encoding: "json",
 		EncoderConfig: zapcore.EncoderConfig{
 			TimeKey:        "time",

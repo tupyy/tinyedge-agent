@@ -7,6 +7,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
@@ -84,7 +85,7 @@ func (c *Manager) SetCertificate(cert, privateKey []byte) error {
 
 	c.cert = newCert
 	c.privateKey = key
-	c.privateKeyType = block.Type
+	c.privateKeyType = rsaPrivateKeyBlockType
 
 	return nil
 }
@@ -102,7 +103,7 @@ func (c *Manager) GetCertificates() (*x509.CertPool, *x509.Certificate, crypto.P
 func (c *Manager) GenerateCSR(deviceID string) ([]byte, []byte, error) {
 	var csrTemplate = x509.CertificateRequest{
 		Subject: pkix.Name{
-			CommonName: deviceID,
+			CommonName: fmt.Sprintf("%s.home.net", deviceID),
 			// Operator will add metadata on this subject, like namespace
 		},
 	}
@@ -144,6 +145,45 @@ func (c *Manager) WriteCertificate(certPath, keyPath string) error {
 	}
 
 	return nil
+}
+
+func (c *Manager) TLSConfig() (*tls.Config, error) {
+	caRoot, cert, key := c.GetCertificates()
+
+	config := tls.Config{
+		RootCAs: caRoot,
+	}
+
+	certPEM := new(bytes.Buffer)
+	err := pem.Encode(certPEM, &pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: cert.Raw,
+	})
+
+	privKeyPEM := new(bytes.Buffer)
+	switch t := key.(type) {
+	case *ecdsa.PrivateKey:
+		res, _ := x509.MarshalECPrivateKey(t)
+		_ = pem.Encode(privKeyPEM, &pem.Block{
+			Type:  "EC PRIVATE KEY",
+			Bytes: res,
+		})
+	case *rsa.PrivateKey:
+		_ = pem.Encode(privKeyPEM, &pem.Block{
+			Type:  "RSA PRIVATE KEY",
+			Bytes: x509.MarshalPKCS1PrivateKey(t),
+		})
+	}
+
+	//
+	cc, err := tls.X509KeyPair(certPEM.Bytes(), privKeyPEM.Bytes())
+	if err != nil {
+		return nil, fmt.Errorf("cannot create x509 key pair: %w", err)
+	}
+
+	config.Certificates = []tls.Certificate{cc}
+
+	return &config, nil
 }
 
 func (c *Manager) marshalKeyToPem(key crypto.PrivateKey) *bytes.Buffer {

@@ -132,7 +132,7 @@ build:
 	CGO_ENABLED=$(CGO_ENABLED) go build $(BUILD_OPTIONS) -o ./bin/device-worker ./main.go
 
 run: build
-	./bin/device-worker --config $(PWD)/resources/config.yaml | $(COLORIZE)
+	./bin/device-worker --config $(PWD)/resources/config.yaml --use-grpc | $(COLORIZE)
 
 run.root: build
 	sudo ./bin/device-worker --config $(PWD)/resources/config.yaml | $(COLORIZE)
