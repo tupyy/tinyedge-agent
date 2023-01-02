@@ -1,7 +1,7 @@
-LOG_LEVEL: debug
-CA_ROOT: /home/cosmin/projects/device-worker-ng/resources/certificates/ca.pem
-CERT: /home/cosmin/projects/device-worker-ng/resources/certificates/cert.pem
-KEY: /home/cosmin/projects/device-worker-ng/resources/certificates/key.pem
+LOG_LEVEL: DEBUG
+CA_ROOT: /home/cosmin/projects/tinyedge-agent/resources/certificates/ca.pem
+CERT: /home/cosmin/projects/tinyedge-agent/resources/certificates/cert.pem
+KEY: /home/cosmin/projects/tinyedge-agent/resources/certificates/key.pem
 SERVER: 127.0.0.1:8080
 XDG_RUNTIME_DIR: /run/user/1000
 KUBECONFIG: /home/cosmin/.kube/minikube.yaml

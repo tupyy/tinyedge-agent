@@ -2,6 +2,7 @@ package edge
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -12,6 +13,10 @@ import (
 	"github.com/tupyy/tinyedge-agent/internal/entity"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
+)
+
+var (
+	ErrAuthorizationDenied = errors.New("authorization denied")
 )
 
 //go:generate mockgen -package=edge -destination=mock_client.go --build_flags=--mod=mod . Client
@@ -86,7 +91,7 @@ func (c *Controller) run(ctx context.Context) {
 				TargetNamespace: config.GetTargetNamespace(),
 			}
 
-			if err := c.client.Enrol(context.TODO(), config.GetDeviceID(), enrolInfo); err != nil {
+			if err := c.client.Enrol(ctx, config.GetDeviceID(), enrolInfo); err != nil {
 				zap.S().Errorw("Cannot enroll device", "error", err, "enrolement info", enrolInfo)
 				break
 			}
@@ -96,6 +101,12 @@ func (c *Controller) run(ctx context.Context) {
 
 			zap.S().Info("Device enrolled")
 		case <-register:
+			if !c.certManager.IsRegistrationCertificate() {
+				zap.S().Info("the certificate is not the registration certificate. skipping registration.")
+				register = nil
+				break
+			}
+
 			zap.S().Info("Registering device")
 
 			csr, key, err := c.certManager.GenerateCSR(config.GetDeviceID())
@@ -109,7 +120,7 @@ func (c *Controller) run(ctx context.Context) {
 				Hardware:           c.confManager.HardwareInfo(),
 			}
 
-			res, err := c.client.Register(context.TODO(), config.GetDeviceID(), registerInfo)
+			res, err := c.client.Register(ctx, config.GetDeviceID(), registerInfo)
 			if err != nil {
 				zap.S().Errorw("Cannot register device", "error", err, "registration info", registerInfo)
 				break
@@ -117,10 +128,10 @@ func (c *Controller) run(ctx context.Context) {
 
 			c.certManager.SetCertificate(res.SignedCSR, key)
 
-			if err := c.certManager.WriteCertificate(config.GetCertificateFile(), config.GetPrivateKey()); err != nil {
-				zap.S().Errorw("cannot write certificates", "error", err)
-				break
-			}
+			// if err := c.certManager.WriteCertificate(config.GetCertificateFile(), config.GetPrivateKey()); err != nil {
+			// 	zap.S().Errorw("cannot write certificates", "error", err)
+			// 	break
+			// }
 
 			// registration has been successful
 			register = nil
@@ -164,14 +175,13 @@ func (c *Controller) run(ctx context.Context) {
 
 			if err := g.Wait(); err != nil {
 				zap.S().Errorf("Error during op: %s", err)
-
-				// TODO refactor this into something better
-				switch err.(type) {
-				case UnauthorizedAccessError:
-					// start the registration process once again
+				if errors.Is(err, ErrAuthorizationDenied) {
+					zap.S().Info("restart the registration process again")
+					ticker.Reset(2 * time.Second)
+					// rollback to registration certificate
+					zap.S().Debug("rollback certificate to the registration certificate")
+					c.certManager.RollbackCertificate()
 					enrol = make(chan struct{}, 1)
-				default:
-					// it is something with code != 401 so we keep going doing op
 				}
 			}
 		case heartbeatPeriod := <-configuration:

@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 )
 
 const (
@@ -25,9 +26,11 @@ type Manager struct {
 	cert       *x509.Certificate
 	privateKey crypto.PrivateKey
 	// csrKey is the key used to create the CSR.
-	csrKey         crypto.PrivateKey
-	privateKeyType string
-	rootCA         *x509.CertPool
+	csrKey                 crypto.PrivateKey
+	privateKeyType         string
+	rootCA                 *x509.CertPool
+	registrationCert       *x509.Certificate
+	registrationPrivateKey crypto.PrivateKey
 }
 
 func New(caRootBlock [][]byte, cert, privateKey []byte) (*Manager, error) {
@@ -43,56 +46,47 @@ func New(caRootBlock [][]byte, cert, privateKey []byte) (*Manager, error) {
 		rootCA: pool,
 	}
 
-	if err := c.SetCertificate(cert, privateKey); err != nil {
+	newCert, key, keyType, err := c.decode(cert, privateKey)
+	if err != nil {
 		return nil, err
 	}
+
+	c.cert = newCert
+	c.registrationCert = newCert
+	c.privateKey = key
+	c.registrationPrivateKey = key
+	c.privateKeyType = keyType
 
 	return c, nil
 }
 
 // Certificates set a new certificate and a private key.
 func (c *Manager) SetCertificate(cert, privateKey []byte) error {
-	certPem, _ := pem.Decode(cert)
-	if certPem == nil {
-		return fmt.Errorf("cannot decode certificate from pem")
-	}
 
-	newCert, err := x509.ParseCertificate(certPem.Bytes)
+	newCert, key, keyType, err := c.decode(cert, privateKey)
 	if err != nil {
-		return fmt.Errorf("cannot parse certificate: %w", err)
-	}
-
-	// decode key
-	block, _ := pem.Decode(privateKey)
-	if block == nil {
-		return fmt.Errorf("cannot private key")
-	}
-
-	var key crypto.Signer
-
-	switch block.Type {
-	case ecPrivateKeyBlockType:
-		key, err = x509.ParseECPrivateKey(block.Bytes)
-	case rsaPrivateKeyBlockType:
-		key, err = x509.ParsePKCS1PrivateKey(block.Bytes)
-	default:
-		err = fmt.Errorf("unknown block type")
-	}
-
-	if err != nil {
-		return fmt.Errorf("cannot decode private key: %w", err)
+		return err
 	}
 
 	c.cert = newCert
 	c.privateKey = key
-	c.privateKeyType = rsaPrivateKeyBlockType
+	c.privateKeyType = keyType
 
 	return nil
+}
+
+func (c *Manager) RollbackCertificate() {
+	c.cert = c.registrationCert
+	c.privateKey = c.registrationPrivateKey
 }
 
 // Signature returns the client certificate signature.
 func (c *Manager) Signature() []byte {
 	return c.cert.Signature[:]
+}
+
+func (c *Manager) IsRegistrationCertificate() bool {
+	return strings.HasPrefix(c.cert.Subject.CommonName, "registration")
 }
 
 // GetCertificates returns the CA certificate, client certificate and private key.
@@ -151,7 +145,9 @@ func (c *Manager) TLSConfig() (*tls.Config, error) {
 	caRoot, cert, key := c.GetCertificates()
 
 	config := tls.Config{
-		RootCAs: caRoot,
+		RootCAs:    caRoot,
+		MinVersion: tls.VersionTLS13,
+		MaxVersion: tls.VersionTLS13,
 	}
 
 	certPEM := new(bytes.Buffer)
@@ -210,8 +206,42 @@ func (c *Manager) generateKey(keyType string) (crypto.PrivateKey, error) {
 	case ecPrivateKeyBlockType:
 		return ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	case rsaPrivateKeyBlockType:
-		return rsa.GenerateKey(rand.Reader, 4096)
+		return rsa.GenerateKey(rand.Reader, 2048)
 	default:
 		return nil, fmt.Errorf("unknown algorithm to create the key")
 	}
+}
+
+func (c *Manager) decode(cert, key []byte) (*x509.Certificate, crypto.PrivateKey, string, error) {
+	certPem, _ := pem.Decode(cert)
+	if certPem == nil {
+		return nil, nil, "", fmt.Errorf("cannot decode certificate from pem")
+	}
+
+	newCert, err := x509.ParseCertificate(certPem.Bytes)
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("cannot parse certificate: %w", err)
+	}
+
+	// decode key
+	block, _ := pem.Decode(key)
+	if block == nil {
+		return nil, nil, "", fmt.Errorf("cannot private key")
+	}
+
+	var privateKey crypto.Signer
+
+	switch block.Type {
+	case ecPrivateKeyBlockType:
+		privateKey, err = x509.ParseECPrivateKey(block.Bytes)
+	case rsaPrivateKeyBlockType:
+		privateKey, err = x509.ParsePKCS1PrivateKey(block.Bytes)
+	default:
+		err = fmt.Errorf("unknown block type")
+	}
+
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("cannot decode private key: %w", err)
+	}
+	return newCert, privateKey, block.Type, nil
 }

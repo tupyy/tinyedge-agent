@@ -150,10 +150,10 @@ func setupLogger() *zap.Logger {
 		ErrorOutputPaths: []string{"stderr"},
 	}
 
-	atomicLogLevel, err := zap.ParseAtomicLevel(logLevel)
-	if err == nil {
-		loggerCfg.Level = atomicLogLevel
-	}
+	// atomicLogLevel, err := zap.ParseAtomicLevel(logLevel)
+	// if err == nil {
+	// 	loggerCfg.Level = atomicLogLevel
+	// }
 
 	plain, err := loggerCfg.Build(zap.AddStacktrace(zap.DPanicLevel))
 	if err != nil {
