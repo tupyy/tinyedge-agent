@@ -16,11 +16,13 @@ Requires: podman
 Agent for tinyedge-operator
 
 %prep
-%setup -q
+
+%built
+%gobuild -o %{gobuilddir}/tinyedge-agent main.go
 
 %install
-install -D -m 0755 tinyedge-agent $RPM_BUILD_ROOT/usr/bin/tinyedge-agent
-install -D -m 0755 config.yaml $RPM_BUILD_ROOT/etc/tinyedge-agent/config.yaml
+install -m 0755 -vd                     %{buildroot}%{_bindir}
+install -m 0755 -vp %{gobuilddir}/bin/* %{buildroot}%{_bindir}/
 
 %files
 %defattr(755,root,root)
@@ -45,6 +47,6 @@ systemctl enable --now podman.socket
 - new package built with tito
 
 * Wed Sep 28 2022 Cosmin Tupangiu <cosmin@redhat.com>
-* Oct 13 2022 Fix data races
-* Jan 12 2023 Add grpc client
+* Wed Oct 13 2022 Fix data races
+* Wed Dec 12 2022 Add grpc client
 - 

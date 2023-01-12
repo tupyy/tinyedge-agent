@@ -4,7 +4,7 @@ DIST_DIR = $(shell pwd)/dist
 CGO_ENABLED = 0
 OS :=$(shell awk -F= '/^ID/{print $$2}' /etc/os-release)
 BUILDROOT ?=
-NAME ?= device-worker-ng
+NAME ?= tinyedge-agent
 
 DOCKER ?= podman
 IMG ?= quay.io/ctupangiu/edgedevice-ng:latest
@@ -12,7 +12,7 @@ VERSION ?= 0.1
 GIT_COMMIT=$(shell git rev-list -1 HEAD --abbrev-commit)
 
 IMAGE_TAG=$(VERSION)-$(GIT_COMMIT)
-IMAGE_NAME=device-worker-ng
+IMAGE_NAME=tinyedge-agent
 
 # Colors used in this Makefile
 escape=$(shell printf '\033')
@@ -129,13 +129,13 @@ build: CGO_ENABLED=1
 build: BUILD_OPTIONS=--race -ldflags="-X github.com/tupyy/device-worker-ng/configuration.CommitID=${GIT_COMMIT}"
 build:
 	mkdir -p ./bin
-	CGO_ENABLED=$(CGO_ENABLED) go build $(BUILD_OPTIONS) -o ./bin/device-worker ./main.go
+	CGO_ENABLED=$(CGO_ENABLED) go build $(BUILD_OPTIONS) -o ./bin/$(NAME) ./main.go
 
 run: build
-	./bin/device-worker --config $(PWD)/resources/config.yaml --use-grpc | $(COLORIZE)
+	./bin/$(NAME) --config $(PWD)/resources/config.yaml --use-grpc | $(COLORIZE)
 
 run.root: build
-	sudo ./bin/device-worker --config $(PWD)/resources/config.yaml | $(COLORIZE)
+	sudo ./bin/$(NAME) --config $(PWD)/resources/config.yaml | $(COLORIZE)
 
 build.docker:
 	$(DOCKER) build . -t $(IMAGE_NAME):$(IMAGE_TAG)
