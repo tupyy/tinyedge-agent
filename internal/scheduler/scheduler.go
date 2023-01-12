@@ -315,7 +315,7 @@ func (s *Scheduler) GetWorkloadsStatus() map[string]entity.JobState {
 		switch j.Workload().Kind() {
 		case entity.PodKind:
 			pod, _ := j.Workload().(entity.PodWorkload)
-			name = pod.Name
+			name = pod.Name()
 		default:
 			continue
 		}

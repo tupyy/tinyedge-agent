@@ -207,51 +207,52 @@ func configurationModel2Entity(m models.DeviceConfigurationMessage) entity.Devic
 	}
 
 	workloads := make([]entity.Workload, 0, len(m.Workloads))
-	for _, w := range m.Workloads {
-		var k entity.WorkloadKind
-		switch w.Kind {
-		case "k8s":
-			k = entity.K8SKind
-		default:
-			k = entity.PodKind
-		}
-		podWorkload := entity.PodWorkload{
-			Name:          w.Name,
-			Namespace:     w.Namespace,
-			WKind:         k,
-			Annotations:   w.Annotations,
-			Configmaps:    w.Configmaps,
-			Labels:        w.Labels,
-			CronSpec:      w.Cron,
-			Rootless:      w.Rootless,
-			Specification: w.Specification,
-		}
+	for range m.Workloads {
+		// var k entity.WorkloadKind
+		// switch w.Kind {
+		// case "k8s":
+		// 	k = entity.K8SKind
+		// default:
+		// 	k = entity.PodKind
+		// }
+		// TODO fix it
+		// podWorkload := entity.PodWorkload{
+		// 	Name:          w.Name,
+		// 	Namespace:     w.Namespace,
+		// 	WKind:         k,
+		// 	Annotations:   w.Annotations,
+		// 	Configmaps:    w.Configmaps,
+		// 	Labels:        w.Labels,
+		// 	CronSpec:      w.Cron,
+		// 	Rootless:      w.Rootless,
+		// 	Specification: w.Specification,
+		// }
 
-		if w.ImageRegistries != nil {
-			podWorkload.ImageRegistryAuth = w.ImageRegistries.AuthFile
-		}
+		// if w.ImageRegistries != nil {
+		// 	podWorkload.ImageRegistryAuth = w.ImageRegistries.AuthFile
+		// }
 
-		if len(w.Profiles) > 0 {
-			podWorkload.WorkloadProfiles = make([]entity.WorkloadProfile, 0, len(w.Profiles))
-			for _, profile := range w.Profiles {
-				wp := entity.WorkloadProfile{
-					Name:       profile.Name,
-					Conditions: make([]entity.WorkloadCondition, 0),
-				}
-				for _, c := range profile.Conditions {
-					wc := entity.WorkloadCondition{
-						Name: c.Name,
-					}
-					if c.CPU != nil {
-						wc.CPU = &c.CPU.CPU
-					}
-					wp.Conditions = append(wp.Conditions, wc)
-				}
-				podWorkload.WorkloadProfiles = append(podWorkload.WorkloadProfiles, wp)
-			}
-		}
+		// if len(w.Profiles) > 0 {
+		// 	podWorkload.WorkloadProfiles = make([]entity.WorkloadProfile, 0, len(w.Profiles))
+		// 	for _, profile := range w.Profiles {
+		// 		wp := entity.WorkloadProfile{
+		// 			Name:       profile.Name,
+		// 			Conditions: make([]entity.WorkloadCondition, 0),
+		// 		}
+		// 		for _, c := range profile.Conditions {
+		// 			wc := entity.WorkloadCondition{
+		// 				Name: c.Name,
+		// 			}
+		// 			if c.CPU != nil {
+		// 				wc.CPU = &c.CPU.CPU
+		// 			}
+		// 			wp.Conditions = append(wp.Conditions, wc)
+		// 		}
+		// 		podWorkload.WorkloadProfiles = append(podWorkload.WorkloadProfiles, wp)
+		// 	}
+		// }
 
-		workloads = append(workloads, podWorkload)
+		// workloads = append(workloads, podWorkload)
 	}
 
 	deviceConf := entity.DeviceConfigurationMessage{

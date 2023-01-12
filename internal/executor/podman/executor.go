@@ -33,13 +33,13 @@ func (e *PodmanExecutor) Run(ctx context.Context, w entity.Workload) error {
 	pod, err := common.ToPod(workload)
 	if err != nil {
 		zap.S().Errorw("failed to create pod", "error", err)
-		return fmt.Errorf("[%w] [%s] workload_name '%s'", common.ErrDeployingWorkload, err, workload.Name)
+		return fmt.Errorf("[%w] [%s] workload_name '%s'", common.ErrDeployingWorkload, err, workload.Name())
 	}
 
-	yaml, err := common.ToPodYaml(pod, workload.Configmaps)
+	yaml, err := common.ToPodYaml(pod, workload.ConfigMaps())
 	if err != nil {
 		zap.S().Errorw("failed to create pod", "error", err)
-		return fmt.Errorf("[%w] [%s] workload_name '%s'", common.ErrDeployingWorkload, err, workload.Name)
+		return fmt.Errorf("[%w] [%s] workload_name '%s'", common.ErrDeployingWorkload, err, workload.Name())
 	}
 
 	zap.S().Debugw("pod spec", "spec", string(yaml))
@@ -49,15 +49,15 @@ func (e *PodmanExecutor) Run(ctx context.Context, w entity.Workload) error {
 	tmp.Write(yaml)
 	tmp.Close()
 
-	report, err := e.podman.Run(e.createPodCGroupParent(w), tmp.Name(), workload.ImageRegistryAuth, workload.Annotations)
+	report, err := e.podman.Run(e.createPodCGroupParent(w), tmp.Name(), workload.ImageRegistryAuth(), workload.Annotations())
 	if err != nil {
 		zap.S().Errorw("failed to execute workload", "error", err, "report", report)
-		return fmt.Errorf("%w %s workload_name '%s'", common.ErrDeployingWorkload, err, workload.Name)
+		return fmt.Errorf("%w %s workload_name '%s'", common.ErrDeployingWorkload, err, workload.Name())
 	}
 
 	err = e.podman.Start(report[0].Id)
 	if err != nil {
-		return fmt.Errorf("%w workload name '%s', error %s", common.ErrRunningWorkload, workload.Name, err)
+		return fmt.Errorf("%w workload name '%s', error %s", common.ErrRunningWorkload, workload.Name(), err)
 	}
 
 	return nil

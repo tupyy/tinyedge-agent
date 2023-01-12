@@ -382,7 +382,7 @@ func subvolLimitQgroup(path string, size uint64) error {
 	defer closeDir(dir)
 
 	var args C.struct_btrfs_ioctl_qgroup_limit_args
-	args.lim.max_rfer = C.__u64(size)
+	args.lim.max_referenced = C.__u64(size)
 	args.lim.flags = C.BTRFS_QGROUP_LIMIT_MAX_RFER
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QGROUP_LIMIT,
 		uintptr(unsafe.Pointer(&args)))

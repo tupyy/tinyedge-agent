@@ -49,7 +49,7 @@ func (m DeviceConfigurationMessage) Hash() string {
 		return m.Workloads[i].ID() < m.Workloads[j].ID()
 	})
 	for _, t := range m.Workloads {
-		fmt.Fprintf(&sb, "%s", t.String())
+		fmt.Fprintf(&sb, "%s", t.Hash())
 	}
 	sum := sha256.Sum256(bytes.NewBufferString(sb.String()).Bytes())
 	return fmt.Sprintf("%x", sum)

@@ -6,146 +6,131 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/tupyy/tinyedge-controller/pkg/grpc/common"
 )
 
 type WorkloadKind string
 
 const (
-	PodKind     WorkloadKind = "pod"
-	AnsibleKind WorkloadKind = "ansible"
-	K8SKind     WorkloadKind = "k8s"
+	PodKind WorkloadKind = "pod"
+	K8SKind WorkloadKind = "k8s"
 )
 
 type Workload interface {
 	ID() string
 	Kind() WorkloadKind
-	String() string
 	Hash() string
+	Name() string
 	Cron() string
 	IsRootless() bool
 	Profiles() []WorkloadProfile
+	Specification() string
+	ConfigMaps() []string
+	Secrets() map[string]string
+	String() string
+}
+
+func NewPodWorkload(w *common.Workload) PodWorkload {
+	hash := createHash(w)
+	secrets := make(map[string]string)
+	json, _ := json.Marshal(w)
+
+	pod := PodWorkload{
+		id:            fmt.Sprintf("%s-%s", w.Name, hash[:12]),
+		name:          w.Name,
+		labels:        w.Labels,
+		configmaps:    w.ConfigMaps,
+		specification: w.Spec,
+		rootless:      w.Rootless,
+		secrets:       secrets,
+		definition:    string(json),
+	}
+	return pod
 }
 
 // PodWorkload represents the workload in form of a pod.
 type PodWorkload struct {
-	Name string
-
-	WKind WorkloadKind
-
-	// Namespace of the workload
-	Namespace string
-
+	// id - id of the workload
+	id string
+	// name - name of the workload
+	name string
+	// hash - has of the workload
+	hash string
 	// cron spec
-	CronSpec string
-
+	cronSpec string
 	// Rootless is true if workload is to be executed in podman rootless
-	Rootless bool
-
-	// Annotations
-	Annotations map[string]string
-
+	rootless bool
 	// secrets
-	Secrets map[string]string
-
+	secrets map[string]string
 	// configmaps
-	Configmaps []string
-
+	configmaps []string
 	// image registries auth file
-	ImageRegistryAuth string
-
+	imageRegistryAuth string
 	// Workload labels
-	Labels map[string]string
-
-	WorkloadProfiles []WorkloadProfile
-
+	labels map[string]string
+	// profiles
+	workloadProfiles []WorkloadProfile
 	// specification
-	Specification string
+	specification string
+	// definition
+	definition string
 }
 
 func (p PodWorkload) ID() string {
-	return fmt.Sprintf("%s-%s", p.Name, p.Hash()[:12])
+	return p.id
 }
 
-func (p PodWorkload) Kind() WorkloadKind {
-	return p.WKind
-}
-
-func (p PodWorkload) Profiles() []WorkloadProfile {
-	return p.WorkloadProfiles
+func (p PodWorkload) Name() string {
+	return p.name
 }
 
 func (p PodWorkload) String() string {
-	json, err := json.Marshal(p)
-	if err != nil {
-		return err.Error()
-	}
-	return string(json)
+	return p.definition
 }
 
-// func (p PodWorkload) CGroupParent() string {
-// 	return fmt.Sprintf("machine-flotta-%s_%s.slice", strings.ReplaceAll(p.Name, "-", "_"), p.Hash()[:12])
-// }
+func (p PodWorkload) Kind() WorkloadKind {
+	return PodKind
+}
+
+func (p PodWorkload) Profiles() []WorkloadProfile {
+	return p.workloadProfiles
+}
 
 func (p PodWorkload) Hash() string {
-	var sb strings.Builder
-
-	fmt.Fprintf(&sb, "%s", p.Name)
-	fmt.Fprintf(&sb, "%s", p.Namespace)
-	fmt.Fprintf(&sb, "%s", p.Kind())
-	for k, v := range p.Annotations {
-		fmt.Fprintf(&sb, "%s%s", k, v)
-	}
-
-	for k, v := range p.Secrets {
-		fmt.Fprintf(&sb, "%s%s", k, v)
-	}
-
-	for k, v := range p.Labels {
-		fmt.Fprintf(&sb, "%s%s", k, v)
-	}
-
-	for _, c := range p.Configmaps {
-		fmt.Fprintf(&sb, "%s", c)
-	}
-
-	fmt.Fprintf(&sb, "%s", p.ImageRegistryAuth)
-	fmt.Fprintf(&sb, "%s", p.Specification)
-	fmt.Fprintf(&sb, "%+v", p.WorkloadProfiles)
-	fmt.Fprintf(&sb, "%v", p.Rootless)
-	fmt.Fprintf(&sb, "%s", p.CronSpec)
-
-	sum := sha256.Sum256(bytes.NewBufferString(sb.String()).Bytes())
-	return fmt.Sprintf("%x", sum)
+	return p.hash
 }
 
 func (p PodWorkload) Cron() string {
-	return p.CronSpec
+	return p.cronSpec
 }
 
 func (p PodWorkload) IsRootless() bool {
-	return p.Rootless
+	return p.rootless
 }
 
-// AnsibleWorkload represents ansible workload.
-type AnsibleWorkload struct {
-	Playbook string
+func (p PodWorkload) Specification() string {
+	return p.specification
 }
 
-func (a AnsibleWorkload) Kind() WorkloadKind {
-	return AnsibleKind
+func (p PodWorkload) Secrets() map[string]string {
+	return p.secrets
 }
 
-func (a AnsibleWorkload) String() string {
-	json, err := json.Marshal(a)
-	if err != nil {
-		return err.Error()
-	}
-	return string(json)
+func (p PodWorkload) Labels() map[string]string {
+	return p.labels
 }
 
-func (a AnsibleWorkload) Hash() string {
-	sum := sha256.Sum256(bytes.NewBufferString(a.Playbook).Bytes())
-	return fmt.Sprintf("%x", sum)
+func (p PodWorkload) ConfigMaps() []string {
+	return p.configmaps
+}
+
+func (p PodWorkload) Annotations() map[string]string {
+	return make(map[string]string)
+}
+
+func (p PodWorkload) ImageRegistryAuth() string {
+	return p.imageRegistryAuth
 }
 
 type WorkloadProfile struct {
@@ -156,4 +141,24 @@ type WorkloadProfile struct {
 type WorkloadCondition struct {
 	Name string
 	CPU  *int64
+}
+
+func createHash(w *common.Workload) string {
+	var sb strings.Builder
+
+	fmt.Fprintf(&sb, "%s", w.Name)
+
+	for k, v := range w.Labels {
+		fmt.Fprintf(&sb, "%s%s", k, v)
+	}
+
+	for _, c := range w.ConfigMaps {
+		fmt.Fprintf(&sb, "%s", c)
+	}
+
+	fmt.Fprintf(&sb, "%s", w.Spec)
+	fmt.Fprintf(&sb, "%v", w.Rootless)
+
+	sum := sha256.Sum256(bytes.NewBufferString(sb.String()).Bytes())
+	return fmt.Sprintf("%x", sum)
 }

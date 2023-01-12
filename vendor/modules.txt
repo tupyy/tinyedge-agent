@@ -708,7 +708,7 @@ github.com/theupdateframework/go-tuf/encrypted
 # github.com/titanous/rocacheck v0.0.0-20171023193734-afe73141d399
 ## explicit
 github.com/titanous/rocacheck
-# github.com/tupyy/tinyedge-controller v0.0.0-20230104160356-5a8cb9268105
+# github.com/tupyy/tinyedge-controller v0.0.0-20230110184755-cd819ff8ade6
 ## explicit; go 1.18
 github.com/tupyy/tinyedge-controller/pkg/grpc/common
 github.com/tupyy/tinyedge-controller/pkg/grpc/edge

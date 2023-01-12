@@ -18,7 +18,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.14.0
 	github.com/stretchr/testify v1.8.1
-	github.com/tupyy/tinyedge-controller v0.0.0-20230104160356-5a8cb9268105
+	github.com/tupyy/tinyedge-controller v0.0.0-20230110184755-cd819ff8ade6
 	go.uber.org/zap v1.24.0
 	golang.org/x/sync v0.1.0
 	google.golang.org/grpc v1.51.0

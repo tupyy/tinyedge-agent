@@ -12,7 +12,7 @@ import (
 
 func ToPod(workload entity.PodWorkload) (*v1.Pod, error) {
 	podSpec := v1.PodSpec{}
-	err := yaml.Unmarshal([]byte(workload.Specification), &podSpec)
+	err := yaml.Unmarshal([]byte(workload.Specification()), &podSpec)
 	if err != nil {
 		return nil, err
 	}
@@ -21,8 +21,7 @@ func ToPod(workload entity.PodWorkload) (*v1.Pod, error) {
 	}
 	pod.Kind = "Pod"
 	pod.Name = fmt.Sprintf("%s", workload.ID())
-	pod.Annotations = workload.Annotations
-	pod.Labels = workload.Labels
+	pod.Labels = workload.Labels()
 	var containers []v1.Container
 	for _, container := range pod.Spec.Containers {
 		container.Env = append(container.Env, v1.EnvVar{Name: "DEVICE_ID", Value: config.GetDeviceID()})
@@ -39,7 +38,7 @@ func ToPod(workload entity.PodWorkload) (*v1.Pod, error) {
 	// }
 
 	// add label to identity this workload as ours
-	//pod.Labels["project-flotta.io"] = workload.Hash()
+	pod.Labels["tinyedge.io"] = workload.Hash()
 
 	return &pod, nil
 }

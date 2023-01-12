@@ -41,7 +41,7 @@ func (e *K8sExecutor) Run(ctx context.Context, w entity.Workload) error {
 		return err
 	}
 
-	deploymentClient := e.client.AppsV1().Deployments(workload.Namespace)
+	deploymentClient := e.client.AppsV1().Deployments("default")
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: w.ID(),
@@ -87,7 +87,7 @@ func (e *K8sExecutor) Stop(ctx context.Context, id string) error {
 
 func (e *K8sExecutor) Remove(ctx context.Context, w entity.Workload) error {
 	workload := w.(entity.PodWorkload)
-	deploymentsClient := e.client.AppsV1().Deployments(workload.Namespace)
+	deploymentsClient := e.client.AppsV1().Deployments("default")
 	deletePolicy := metav1.DeletePropagationForeground
 	if err := deploymentsClient.Delete(ctx, workload.ID(), metav1.DeleteOptions{
 		PropagationPolicy: &deletePolicy,
@@ -103,7 +103,7 @@ func (e *K8sExecutor) List(ctx context.Context) ([]common.WorkloadInfo, error) {
 
 func (e *K8sExecutor) GetState(ctx context.Context, w entity.Workload) (entity.JobState, error) {
 	workload := w.(entity.PodWorkload)
-	deploymentClient := e.client.AppsV1().Deployments(workload.Namespace)
+	deploymentClient := e.client.AppsV1().Deployments("default")
 	list, err := deploymentClient.List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return entity.UnknownState, err
