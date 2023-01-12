@@ -136,6 +136,9 @@ func (c *Controller) run(ctx context.Context) {
 			// registration has been successful
 			register = nil
 
+			// give time to Vault to save the new certificate.
+			<-time.After(1 * time.Second)
+
 			zap.S().Info("Device registered")
 		case <-op:
 			// This branch handles the main operations: send heartbeat and get the configuration.
