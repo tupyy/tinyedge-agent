@@ -18,7 +18,6 @@ import "C"
 import (
 	"fmt"
 	"io/fs"
-	"io/ioutil"
 	"math"
 	"os"
 	"path"
@@ -383,7 +382,7 @@ func subvolLimitQgroup(path string, size uint64) error {
 	defer closeDir(dir)
 
 	var args C.struct_btrfs_ioctl_qgroup_limit_args
-	args.lim.max_referenced = C.__u64(size)
+	args.lim.max_rfer = C.__u64(size)
 	args.lim.flags = C.BTRFS_QGROUP_LIMIT_MAX_RFER
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QGROUP_LIMIT,
 		uintptr(unsafe.Pointer(&args)))
@@ -524,7 +523,7 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
 		if err := idtools.MkdirAllAs(quotas, 0700, rootUID, rootGID); err != nil {
 			return err
 		}
-		if err := ioutil.WriteFile(path.Join(quotas, id), []byte(fmt.Sprint(driver.options.size)), 0644); err != nil {
+		if err := os.WriteFile(path.Join(quotas, id), []byte(fmt.Sprint(driver.options.size)), 0644); err != nil {
 			return err
 		}
 	}
@@ -643,7 +642,7 @@ func (d *Driver) Get(id string, options graphdriver.MountOpts) (string, error) {
 		return "", fmt.Errorf("%s: not a directory", dir)
 	}
 
-	if quota, err := ioutil.ReadFile(d.quotasDirID(id)); err == nil {
+	if quota, err := os.ReadFile(d.quotasDirID(id)); err == nil {
 		if size, err := strconv.ParseUint(string(quota), 10, 64); err == nil && size >= d.options.minSpace {
 			if err := d.enableQuota(); err != nil {
 				return "", err

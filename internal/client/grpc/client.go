@@ -42,6 +42,8 @@ func New(serverAddress string, certManager *certificate.Manager) (*Client, error
 }
 
 func (c *Client) Close(ctx context.Context) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
 	c.conn.Close()
 }
 

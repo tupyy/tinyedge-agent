@@ -39,7 +39,7 @@ func ToPod(workload entity.PodWorkload) (*v1.Pod, error) {
 	// }
 
 	// add label to identity this workload as ours
-	pod.Labels["project-flotta.io"] = workload.Hash()
+	//pod.Labels["project-flotta.io"] = workload.Hash()
 
 	return &pod, nil
 }
