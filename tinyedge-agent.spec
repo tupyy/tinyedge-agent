@@ -35,6 +35,15 @@ systemctl enable --now podman.socket
 
 %changelog
 * Thu Jan 12 2023 Cosmin Tupangiu <cosmin@redhat.com> 0.1.2-1
+- new package built with tito
+
+* Thu Jan 12 2023 Cosmin Tupangiu <cosmin@redhat.com>
+- new package built with tito
+
+* Thu Jan 12 2023 Cosmin Tupangiu <cosmin@redhat.com>
+- 
+
+* Thu Jan 12 2023 Cosmin Tupangiu <cosmin@redhat.com> 0.1.2-1
 - fix spec (cosmin@redhat.com)
 
 * Thu Jan 12 2023 Cosmin Tupangiu <cosmin@redhat.com>
