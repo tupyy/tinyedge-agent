@@ -32,6 +32,12 @@ install -D -m 0755 config.yaml $RPM_BUILD_ROOT/etc/tinyedge-agent/config.yaml
 systemctl enable --now podman.socket
 
 %changelog
+* Thu Jan 12 2023 Cosmin Tupangiu <cosmin@redhat.com>
+- wait for vault to create certificate (cosmin@redhat.com)
+
+* Thu Jan 12 2023 Cosmin Tupangiu <cosmin@redhat.com>
+- wait for vault to create certificate (cosmin@redhat.com)
+
 * Thu Jan 12 2023 Cosmin Tupangiu <cosmin@redhat.com> 0.1.0-1
 - new package built with tito
 
