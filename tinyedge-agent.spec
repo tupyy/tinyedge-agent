@@ -37,6 +37,9 @@ systemctl enable --now podman.socket
 * Thu Jan 12 2023 Cosmin Tupangiu <cosmin@redhat.com> 0.1.2-1
 - new package built with tito
 
+* Thu Jan 12 2023 Cosmin Tupangiu <cosmin@redhat.com> 0.1.2-1
+- new package built with tito
+
 * Thu Jan 12 2023 Cosmin Tupangiu <cosmin@redhat.com>
 - new package built with tito
 
@@ -62,6 +65,3 @@ systemctl enable --now podman.socket
 - new package built with tito
 
 * Wed Sep 28 2022 Cosmin Tupangiu <cosmin@redhat.com>
-* Wed Oct 13 2022 Fix data races
-* Wed Dec 12 2022 Add grpc client
-- 
