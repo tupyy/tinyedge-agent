@@ -15,16 +15,18 @@ import (
 )
 
 const (
-	prefix          = "EDGE_DEVICE"
-	logLevel        = "LOG_LEVEL"
-	caRoot          = "CA_ROOT"
-	certFile        = "CERT"
-	privateKey      = "KEY"
-	server          = "SERVER"
-	namespace       = "NAMESPACE"
-	deviceID        = "DEVICE_ID"
-	xdg_runtime_dir = "XDG_RUNTIME_DIR"
-	kubeConfig      = "KUBECONFIG"
+	prefix                 = "EDGE_DEVICE"
+	logLevel               = "LOG_LEVEL"
+	caRoot                 = "CA_ROOT"
+	registrationCertFile   = "REGISTRATION_CERT"
+	registrationPrivateKey = "REGISTRATION_KEY"
+	certificate            = "DEVICE_CERTIFICATE"
+	privateKey             = "DEVICE_PRIVATE_KEY"
+	server                 = "SERVER"
+	namespace              = "NAMESPACE"
+	deviceID               = "DEVICE_ID"
+	xdg_runtime_dir        = "XDG_RUNTIME_DIR"
+	kubeConfig             = "KUBECONFIG"
 
 	gracefulShutdown        = "GRACEFUL_SHUTDOWN"
 	defaultGracefulShutdown = 5 * time.Second
@@ -133,12 +135,12 @@ func GetCARootFile() string {
 	return v.GetString(caRoot)
 }
 
-func GetCertificateFile() string {
-	return v.GetString(certFile)
+func GetRegistrationCertificateFile() string {
+	return v.GetString(registrationCertFile)
 }
 
-func GetPrivateKey() string {
-	return v.GetString(privateKey)
+func GetRegistrationPrivateKey() string {
+	return v.GetString(registrationPrivateKey)
 }
 
 func GetServerAddress() string {

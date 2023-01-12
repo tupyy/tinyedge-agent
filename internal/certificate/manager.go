@@ -23,17 +23,21 @@ const (
 )
 
 type Manager struct {
-	cert       *x509.Certificate
-	privateKey crypto.PrivateKey
+	// certificate is the device certificate after registration
+	certificate *x509.Certificate
+	// key is the certificate private key
+	key crypto.PrivateKey
 	// csrKey is the key used to create the CSR.
-	csrKey                 crypto.PrivateKey
-	privateKeyType         string
-	rootCA                 *x509.CertPool
-	registrationCert       *x509.Certificate
+	csrKey         crypto.PrivateKey
+	privateKeyType string
+	rootCA         *x509.CertPool
+	// registrationCertificate is the certificate used to register
+	registrationCertificate *x509.Certificate
+	// registrationPrivateKey is the private key of the registration certificate
 	registrationPrivateKey crypto.PrivateKey
 }
 
-func New(caRootBlock [][]byte, cert, privateKey []byte) (*Manager, error) {
+func New(caRootBlock [][]byte, registrationCertificate, registrationPrivateKey []byte) (*Manager, error) {
 	pool, err := x509.SystemCertPool()
 	if err != nil {
 		return nil, fmt.Errorf("cannot copy system certificate pool: %w", err)
@@ -46,15 +50,13 @@ func New(caRootBlock [][]byte, cert, privateKey []byte) (*Manager, error) {
 		rootCA: pool,
 	}
 
-	newCert, key, keyType, err := c.decode(cert, privateKey)
+	regCert, regPrivateKey, keyType, err := c.decode(registrationCertificate, registrationPrivateKey)
 	if err != nil {
 		return nil, err
 	}
 
-	c.cert = newCert
-	c.registrationCert = newCert
-	c.privateKey = key
-	c.registrationPrivateKey = key
+	c.registrationCertificate = regCert
+	c.registrationPrivateKey = regPrivateKey
 	c.privateKeyType = keyType
 
 	return c, nil
@@ -62,36 +64,41 @@ func New(caRootBlock [][]byte, cert, privateKey []byte) (*Manager, error) {
 
 // Certificates set a new certificate and a private key.
 func (c *Manager) SetCertificate(cert, privateKey []byte) error {
-
 	newCert, key, keyType, err := c.decode(cert, privateKey)
 	if err != nil {
 		return err
 	}
 
-	c.cert = newCert
-	c.privateKey = key
-	c.privateKeyType = keyType
+	if keyType != c.registrationPrivateKey {
+		return fmt.Errorf("registration key type %q does not match the key provided %q", c.privateKeyType, keyType)
+	}
+
+	c.certificate = newCert
+	c.key = key
 
 	return nil
 }
 
 func (c *Manager) RollbackCertificate() {
-	c.cert = c.registrationCert
-	c.privateKey = c.registrationPrivateKey
+	c.certificate = nil
+	c.key = nil
 }
 
 // Signature returns the client certificate signature.
 func (c *Manager) Signature() []byte {
-	return c.cert.Signature[:]
+	return c.certificate.Signature[:]
 }
 
 func (c *Manager) IsRegistrationCertificate() bool {
-	return strings.HasPrefix(c.cert.Subject.CommonName, "registration")
+	return strings.HasPrefix(c.certificate.Subject.CommonName, "registration")
 }
 
 // GetCertificates returns the CA certificate, client certificate and private key.
 func (c *Manager) GetCertificates() (*x509.CertPool, *x509.Certificate, crypto.PrivateKey) {
-	return c.rootCA, c.cert, c.privateKey
+	if c.certificate == nil || c.key == nil {
+		return c.rootCA, c.registrationCertificate, c.registrationPrivateKey
+	}
+	return c.rootCA, c.certificate, c.key
 }
 
 func (c *Manager) GenerateCSR(deviceID string) ([]byte, []byte, error) {
@@ -121,7 +128,7 @@ func (c *Manager) GenerateCSR(deviceID string) ([]byte, []byte, error) {
 }
 
 func (c *Manager) CommonName() string {
-	return c.cert.Subject.CommonName
+	return c.certificate.Subject.CommonName
 }
 
 func (c *Manager) WriteCertificate(certPath, keyPath string) error {
@@ -130,10 +137,10 @@ func (c *Manager) WriteCertificate(certPath, keyPath string) error {
 		return err
 	}
 
-	pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: c.cert.Raw})
+	pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: c.certificate.Raw})
 	certOut.Close()
 
-	err = ioutil.WriteFile(keyPath, c.marshalKeyToPem(c.privateKey).Bytes(), 0600)
+	err = ioutil.WriteFile(keyPath, c.marshalKeyToPem(c.key).Bytes(), 0600)
 	if err != nil {
 		return err
 	}

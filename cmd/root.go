@@ -25,15 +25,15 @@ import (
 )
 
 var (
-	configFile            string
-	caRoot                string
-	certFile              string
-	privateKey            string
-	server                string
-	namespace             string
-	logLevel              string
-	profileManagerEnabled bool
-	useGrpc               bool
+	configFile              string
+	caRoot                  string
+	registrationCertificate string
+	registrationPrivateKey  string
+	server                  string
+	namespace               string
+	logLevel                string
+	profileManagerEnabled   bool
+	useGrpc                 bool
 )
 
 const (
@@ -52,7 +52,7 @@ var rootCmd = &cobra.Command{
 
 		config.InitConfiguration(cmd, configFile)
 
-		certManager, err := initCertificateManager(caRoot, certFile, privateKey)
+		certManager, err := initCertificateManager(caRoot, registrationCertificate, registrationPrivateKey)
 		if err != nil {
 			panic(err)
 		}
@@ -122,8 +122,8 @@ func Execute() {
 func init() {
 	rootCmd.Flags().StringVar(&configFile, "config", "c", "configuration file")
 	rootCmd.Flags().StringVar(&caRoot, "ca-root", "", "ca certificate")
-	rootCmd.Flags().StringVar(&certFile, "cert", "", "client certificate")
-	rootCmd.Flags().StringVar(&privateKey, "key", "", "private key")
+	rootCmd.Flags().StringVar(&registrationCertificate, "registration-certificate", "", "client registration certificate")
+	rootCmd.Flags().StringVar(&registrationPrivateKey, "registration-private-key", "", "registration private key")
 	rootCmd.Flags().StringVar(&server, "server", "", "server address")
 	rootCmd.Flags().StringVar(&namespace, "namespace", "default", "target namespace")
 	rootCmd.Flags().StringVar(&logLevel, "log-level", "info", "log level")

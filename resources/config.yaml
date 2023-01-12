@@ -1,7 +1,7 @@
 LOG_LEVEL: DEBUG
 CA_ROOT: /home/cosmin/projects/tinyedge-agent/resources/certificates/registration_ca.pem
-CERT: /home/cosmin/projects/tinyedge-agent/resources/certificates/registration_cert.pem
-KEY: /home/cosmin/projects/tinyedge-agent/resources/certificates/registration_private_key.pem
+REGISTRATION_CERTIFICATE: /home/cosmin/projects/tinyedge-agent/resources/certificates/registration_cert.pem
+REGISTRATION_PRIVATE_KEY: /home/cosmin/projects/tinyedge-agent/resources/certificates/registration_private_key.pem
 SERVER: 127.0.0.1:8080
 XDG_RUNTIME_DIR: /run/user/1000
 KUBECONFIG: /home/cosmin/.kube/minikube.yaml
