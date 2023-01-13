@@ -48,6 +48,11 @@ func (c *Client) Close(ctx context.Context) {
 }
 
 func (c *Client) Enrol(ctx context.Context, deviceID string, enrolInfo entity.EnrolementInfo) error {
+	if !bytes.Equal(c.certificateSignature, c.certManager.Signature()) {
+		c.conn.Close()
+		c.dial()
+	}
+
 	req := &grpcEdge.EnrolRequest{
 		DeviceId: deviceID,
 	}
@@ -67,6 +72,11 @@ func (c *Client) Enrol(ctx context.Context, deviceID string, enrolInfo entity.En
 }
 
 func (c *Client) Register(ctx context.Context, deviceID string, registerInfo entity.RegistrationInfo) (entity.RegistrationResponse, error) {
+	if !bytes.Equal(c.certificateSignature, c.certManager.Signature()) {
+		c.conn.Close()
+		c.dial()
+	}
+
 	req := &grpcEdge.RegistrationRequest{
 		DeviceId:           deviceID,
 		CertificateRequest: registerInfo.CertificateRequest,
@@ -78,7 +88,7 @@ func (c *Client) Register(ctx context.Context, deviceID string, registerInfo ent
 	if err != nil {
 		status, ok := status.FromError(err)
 		if ok && status.Code() == codes.PermissionDenied {
-			return entity.RegistrationResponse{}, fmt.Errorf("authorization denied %s: %w", err, controller.ErrAuthorizationDenied)
+			return entity.RegistrationResponse{}, fmt.Errorf("authorization denied %s: %w", status.Message(), controller.ErrAuthorizationDenied)
 		}
 		return entity.RegistrationResponse{}, err
 	}
@@ -111,7 +121,7 @@ func (c *Client) Heartbeat(ctx context.Context, deviceID string, heartbeat entit
 	if err != nil {
 		status, ok := status.FromError(err)
 		if ok && status.Code() == codes.PermissionDenied {
-			return fmt.Errorf("authorization denied %s: %w", err, controller.ErrAuthorizationDenied)
+			return fmt.Errorf("authorization denied %s: %w", status.Message(), controller.ErrAuthorizationDenied)
 		}
 		return err
 	}
@@ -145,6 +155,8 @@ func (c *Client) dial() error {
 	if err != nil {
 		return err
 	}
+
+	c.certificateSignature = c.certManager.Signature()
 
 	tlsTransport := credentials.NewTLS(tlsConfig)
 

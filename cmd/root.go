@@ -8,6 +8,7 @@ import (
 	"context"
 	"os"
 	"os/signal"
+	"path"
 
 	"github.com/spf13/cobra"
 	config "github.com/tupyy/tinyedge-agent/configuration"
@@ -55,6 +56,16 @@ var rootCmd = &cobra.Command{
 		certManager, err := initCertificateManager(caRoot, registrationCertificate, registrationPrivateKey)
 		if err != nil {
 			panic(err)
+		}
+
+		// try to find any device certificate from previous registration
+		certificate, key, err := findDeviceCertificates(config.GetConfigurationPath())
+		if err != nil {
+			zap.S().Infof("no certificate from previous registration found in %q", config.GetConfigurationPath())
+		}
+
+		if err := certManager.SetCertificate(certificate, key); err == nil {
+			zap.S().Infof("certificate from previous registration found in %q", config.GetConfigurationPath())
 		}
 
 		var client edge.Client
@@ -186,4 +197,18 @@ func initCertificateManager(caroot, certFile, keyFile string) (*certificate.Mana
 	}
 
 	return certManager, nil
+}
+
+func findDeviceCertificates(folder string) ([]byte, []byte, error) {
+	certificate, err := os.ReadFile(path.Join(folder, "certificate.pem"))
+	if err != nil {
+		return []byte{}, []byte{}, err
+	}
+
+	key, err := os.ReadFile(path.Join(folder, "key.pem"))
+	if err != nil {
+		return []byte{}, []byte{}, err
+	}
+
+	return certificate, key, nil
 }

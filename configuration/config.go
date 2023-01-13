@@ -3,6 +3,7 @@ package configuration
 import (
 	"fmt"
 	"os"
+	"path"
 	"strings"
 	"time"
 
@@ -20,8 +21,6 @@ const (
 	caRoot                 = "CA_ROOT"
 	registrationCertFile   = "REGISTRATION_CERT"
 	registrationPrivateKey = "REGISTRATION_KEY"
-	certificate            = "DEVICE_CERTIFICATE"
-	privateKey             = "DEVICE_PRIVATE_KEY"
 	server                 = "SERVER"
 	namespace              = "NAMESPACE"
 	deviceID               = "DEVICE_ID"
@@ -43,8 +42,9 @@ type RetryConfig struct {
 }
 
 var (
-	v        *viper.Viper
-	CommitID string
+	v              *viper.Viper
+	CommitID       string
+	configFilePath string
 )
 
 func InitConfiguration(cmd *cobra.Command, configFile string) error {
@@ -67,6 +67,9 @@ func InitConfiguration(cmd *cobra.Command, configFile string) error {
 
 	// Bind the current command's flags to viper
 	bindFlags(cmd, v)
+
+	// save configFile path
+	configFilePath = path.Dir(configFile)
 
 	return nil
 }
@@ -101,6 +104,10 @@ func GetGracefulShutdownDuration() time.Duration {
 	}
 
 	return v.GetDuration(gracefulShutdown)
+}
+
+func GetConfigurationPath() string {
+	return configFilePath
 }
 
 func GetHttpRequestTimeout() time.Duration {

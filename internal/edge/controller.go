@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path"
 	"sync"
 	"time"
 
@@ -84,6 +85,12 @@ func (c *Controller) run(ctx context.Context) {
 		case <-enrol:
 			zap.S().Info("Enrolling device")
 
+			if c.certManager.HaveDeviceCertificate() {
+				zap.S().Info("the certificate is not the registration certificate. skipping registration.")
+				enrol = nil
+				break
+			}
+
 			enrolInfo := entity.EnrolementInfo{
 				Features: entity.EnrolmentInfoFeatures{
 					Hardware: c.confManager.HardwareInfo(),
@@ -101,12 +108,6 @@ func (c *Controller) run(ctx context.Context) {
 
 			zap.S().Info("Device enrolled")
 		case <-register:
-			if !c.certManager.IsRegistrationCertificate() {
-				zap.S().Info("the certificate is not the registration certificate. skipping registration.")
-				register = nil
-				break
-			}
-
 			zap.S().Info("Registering device")
 
 			csr, key, err := c.certManager.GenerateCSR(config.GetDeviceID())
@@ -128,10 +129,10 @@ func (c *Controller) run(ctx context.Context) {
 
 			c.certManager.SetCertificate(res.SignedCSR, key)
 
-			// if err := c.certManager.WriteCertificate(config.GetCertificateFile(), config.GetPrivateKey()); err != nil {
-			// 	zap.S().Errorw("cannot write certificates", "error", err)
-			// 	break
-			// }
+			if err := c.certManager.WriteCertificate(path.Join(config.GetConfigurationPath(), "certificate.pem"), path.Join(config.GetConfigurationPath(), "key.pem")); err != nil {
+				zap.S().Errorw("cannot write certificates", "error", err)
+				break
+			}
 
 			// registration has been successful
 			register = nil

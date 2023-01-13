@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"strings"
 )
 
 const (
@@ -69,7 +68,7 @@ func (c *Manager) SetCertificate(cert, privateKey []byte) error {
 		return err
 	}
 
-	if keyType != c.registrationPrivateKey {
+	if keyType != c.privateKeyType {
 		return fmt.Errorf("registration key type %q does not match the key provided %q", c.privateKeyType, keyType)
 	}
 
@@ -86,11 +85,14 @@ func (c *Manager) RollbackCertificate() {
 
 // Signature returns the client certificate signature.
 func (c *Manager) Signature() []byte {
+	if c.certificate == nil {
+		return c.registrationCertificate.Signature[:]
+	}
 	return c.certificate.Signature[:]
 }
 
-func (c *Manager) IsRegistrationCertificate() bool {
-	return strings.HasPrefix(c.certificate.Subject.CommonName, "registration")
+func (c *Manager) HaveDeviceCertificate() bool {
+	return c.certificate != nil
 }
 
 // GetCertificates returns the CA certificate, client certificate and private key.
