@@ -24,6 +24,7 @@ func MapConfigurationResponse(m *grpcEdge.ConfigurationResponse) entity.DeviceCo
 		workloads = append(workloads, entity.NewPodWorkload(w))
 	}
 	return entity.DeviceConfigurationMessage{
+		Hash:          m.Hash,
 		Configuration: e,
 		Workloads:     workloads,
 	}

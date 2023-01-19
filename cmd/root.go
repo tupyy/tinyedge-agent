@@ -62,10 +62,10 @@ var rootCmd = &cobra.Command{
 		certificate, key, err := findDeviceCertificates(config.GetConfigurationPath())
 		if err != nil {
 			zap.S().Infof("no certificate from previous registration found in %q", config.GetConfigurationPath())
-		}
-
-		if err := certManager.SetCertificate(certificate, key); err == nil {
-			zap.S().Infof("certificate from previous registration found in %q", config.GetConfigurationPath())
+		} else {
+			if err := certManager.SetCertificate(certificate, key); err == nil {
+				zap.S().Infof("certificate from previous registration found in %q", config.GetConfigurationPath())
+			}
 		}
 
 		var client edge.Client

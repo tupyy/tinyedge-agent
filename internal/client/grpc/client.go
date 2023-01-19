@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/tupyy/tinyedge-agent/internal/certificate"
@@ -61,6 +62,12 @@ func (c *Client) Enrol(ctx context.Context, deviceID string, enrolInfo entity.En
 
 	resp, err := c.edgeClient.Enrol(ctx, req)
 	if err != nil {
+		status, ok := status.FromError(err)
+		if ok {
+			if strings.Contains(status.String(), "authentication handshake failed") {
+				return fmt.Errorf("authorization denied %s: %w", err, controller.ErrAuthorizationDenied)
+			}
+		}
 		return err
 	}
 
@@ -120,8 +127,13 @@ func (c *Client) Heartbeat(ctx context.Context, deviceID string, heartbeat entit
 	_, err := c.edgeClient.Heartbeat(ctx, req)
 	if err != nil {
 		status, ok := status.FromError(err)
-		if ok && status.Code() == codes.PermissionDenied {
-			return fmt.Errorf("authorization denied %s: %w", status.Message(), controller.ErrAuthorizationDenied)
+		if ok {
+			if status.Code() == codes.PermissionDenied {
+				return fmt.Errorf("authorization denied %s: %w", status.Message(), controller.ErrAuthorizationDenied)
+			}
+			if strings.Contains(status.Message(), "authentication handshake failed") {
+				return controller.ErrTlsHandshakeFailed
+			}
 		}
 		return err
 	}
@@ -139,8 +151,13 @@ func (c *Client) GetConfiguration(ctx context.Context, deviceID string) (entity.
 	conf, err := c.edgeClient.GetConfiguration(ctx, &grpcEdge.ConfigurationRequest{DeviceId: deviceID})
 	if err != nil {
 		status, ok := status.FromError(err)
-		if ok && status.Code() == codes.PermissionDenied {
-			return entity.DeviceConfigurationMessage{}, fmt.Errorf("authorization denied %s: %w", err, controller.ErrAuthorizationDenied)
+		if ok {
+			if status.Code() == codes.PermissionDenied {
+				return entity.DeviceConfigurationMessage{}, fmt.Errorf("authorization denied %s: %w", err, controller.ErrAuthorizationDenied)
+			}
+			if strings.Contains(status.Message(), "authentication handshake failed") {
+				return entity.DeviceConfigurationMessage{}, controller.ErrTlsHandshakeFailed
+			}
 		}
 		return entity.DeviceConfigurationMessage{}, nil
 	}

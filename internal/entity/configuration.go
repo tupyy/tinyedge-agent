@@ -1,16 +1,12 @@
 package entity
 
 import (
-	"bytes"
-	"crypto/sha256"
 	"encoding/json"
-	"fmt"
-	"sort"
-	"strings"
 	"time"
 )
 
 type DeviceConfigurationMessage struct {
+	Hash string
 	// configuration
 	Configuration DeviceConfiguration
 
@@ -36,25 +32,6 @@ func (m DeviceConfigurationMessage) String() string {
 	return string(json)
 }
 
-func (m DeviceConfigurationMessage) Hash() string {
-	var sb strings.Builder
-
-	fmt.Fprintf(&sb, "%s", m.DeviceID)
-	fmt.Fprintf(&sb, "%s", m.Version)
-	fmt.Fprintf(&sb, "%s", m.WorkloadsMonitoringInterval)
-	fmt.Fprintf(&sb, "%s", m.Configuration.String())
-
-	// sort workloads by ID to be sure we don't have surprises
-	sort.Slice(m.Workloads, func(i, j int) bool {
-		return m.Workloads[i].ID() < m.Workloads[j].ID()
-	})
-	for _, t := range m.Workloads {
-		fmt.Fprintf(&sb, "%s", t.Hash())
-	}
-	sum := sha256.Sum256(bytes.NewBufferString(sb.String()).Bytes())
-	return fmt.Sprintf("%x", sum)
-}
-
 type DeviceConfiguration struct {
 	// Heartbeat configuration
 	Heartbeat HeartbeatConfiguration
@@ -74,19 +51,6 @@ func (d DeviceConfiguration) String() string {
 		return err.Error()
 	}
 	return string(json)
-}
-
-func (d DeviceConfiguration) Hash() string {
-	var sb strings.Builder
-
-	fmt.Fprintf(&sb, "%s", d.Heartbeat.String())
-	fmt.Fprintf(&sb, "%+v", d.OsInformation)
-	for _, m := range d.Mounts {
-		fmt.Fprintf(&sb, "%s%s%s%s", m.Device, m.Directory, m.Options, m.Type)
-	}
-	fmt.Fprintf(&sb, "%+v", d.Profiles)
-	sum := sha256.Sum256(bytes.NewBufferString(sb.String()).Bytes())
-	return fmt.Sprintf("%x", sum)
 }
 
 type OsInformation struct {

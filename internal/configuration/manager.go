@@ -65,7 +65,7 @@ func (c *Manager) SetWorkloadStatusReader(r WorkloadStatusReader) {
 }
 
 func (c *Manager) SetConfiguration(newConf entity.DeviceConfigurationMessage) {
-	if newConf.Hash() == c.conf.Hash() {
+	if newConf.Hash == c.conf.Hash {
 		return
 	}
 
