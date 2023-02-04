@@ -1,17 +1,17 @@
 package grpc
 
 import (
-	"bytes"
 	"context"
+	"crypto/tls"
 	"fmt"
 	"strings"
 	"sync"
 
-	"github.com/tupyy/tinyedge-agent/internal/certificate"
 	controller "github.com/tupyy/tinyedge-agent/internal/edge"
 	"github.com/tupyy/tinyedge-agent/internal/entity"
 	grpcCommon "github.com/tupyy/tinyedge-controller/pkg/grpc/common"
 	grpcEdge "github.com/tupyy/tinyedge-controller/pkg/grpc/edge"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -19,41 +19,29 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-type Client struct {
-	edgeClient           grpcEdge.EdgeServiceClient
-	certManager          *certificate.Manager
-	serverAddress        string
-	certificateSignature []byte
-	conn                 *grpc.ClientConn
-	mutex                sync.Mutex
+type client struct {
+	edgeClient grpcEdge.EdgeServiceClient
+	conn       *grpc.ClientConn
+	mutex      sync.Mutex
 }
 
-func New(serverAddress string, certManager *certificate.Manager) (*Client, error) {
-	if certManager == nil {
-		return nil, fmt.Errorf("Certificate manager is missing")
-	}
+func newClient(addr string, tls *tls.Config) (*client, error) {
+	c := &client{}
 
-	c := &Client{serverAddress: serverAddress, certManager: certManager, certificateSignature: certManager.Signature()}
-
-	if err := c.dial(); err != nil {
+	if err := c.dial(addr, tls); err != nil {
 		return nil, err
 	}
 
 	return c, nil
 }
 
-func (c *Client) Close(ctx context.Context) {
+func (c *client) Close(ctx context.Context) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	c.conn.Close()
 }
 
-func (c *Client) Enrol(ctx context.Context, deviceID string, enrolInfo entity.EnrolementInfo) error {
-	if !bytes.Equal(c.certificateSignature, c.certManager.Signature()) {
-		c.conn.Close()
-		c.dial()
-	}
-
+func (c *client) Enrol(ctx context.Context, deviceID string, enrolInfo entity.EnrolementInfo) error {
 	req := &grpcEdge.EnrolRequest{
 		DeviceId: deviceID,
 	}
@@ -67,6 +55,7 @@ func (c *Client) Enrol(ctx context.Context, deviceID string, enrolInfo entity.En
 			if strings.Contains(status.String(), "authentication handshake failed") {
 				return fmt.Errorf("authorization denied %s: %w", err, controller.ErrAuthorizationDenied)
 			}
+			zap.S().Errorf("unable to unrol device: %v", status)
 			return controller.ErrUnknown
 		}
 		return err
@@ -79,12 +68,7 @@ func (c *Client) Enrol(ctx context.Context, deviceID string, enrolInfo entity.En
 	return nil
 }
 
-func (c *Client) Register(ctx context.Context, deviceID string, registerInfo entity.RegistrationInfo) (entity.RegistrationResponse, error) {
-	if !bytes.Equal(c.certificateSignature, c.certManager.Signature()) {
-		c.conn.Close()
-		c.dial()
-	}
-
+func (c *client) Register(ctx context.Context, deviceID string, registerInfo entity.RegistrationInfo) (entity.RegistrationResponse, error) {
 	req := &grpcEdge.RegistrationRequest{
 		DeviceId:           deviceID,
 		CertificateRequest: registerInfo.CertificateRequest,
@@ -98,18 +82,14 @@ func (c *Client) Register(ctx context.Context, deviceID string, registerInfo ent
 		if ok && status.Code() == codes.PermissionDenied {
 			return entity.RegistrationResponse{}, fmt.Errorf("authorization denied %s: %w", status.Message(), controller.ErrAuthorizationDenied)
 		}
+		zap.S().Errorf("unable to register device: %v", status)
 		return entity.RegistrationResponse{}, fmt.Errorf("%w %s", controller.ErrUnknown, err.Error())
 	}
 
 	return entity.RegistrationResponse{SignedCSR: []byte(resp.GetCertificate())}, nil
 }
 
-func (c *Client) Heartbeat(ctx context.Context, deviceID string, heartbeat entity.Heartbeat) error {
-	if !bytes.Equal(c.certificateSignature, c.certManager.Signature()) {
-		c.conn.Close()
-		c.dial()
-	}
-
+func (c *client) Heartbeat(ctx context.Context, deviceID string, heartbeat entity.Heartbeat) error {
 	ctx = c.addDeviceIdToContext(ctx, deviceID)
 
 	req := &grpcCommon.HeartbeatInfo{
@@ -135,6 +115,7 @@ func (c *Client) Heartbeat(ctx context.Context, deviceID string, heartbeat entit
 			if strings.Contains(status.Message(), "failed to verify client certificate") {
 				return controller.ErrTlsHandshakeFailed
 			}
+			zap.S().Errorf("unable to do heartbeat: %v", status)
 			return controller.ErrUnknown
 		}
 		return err
@@ -142,12 +123,7 @@ func (c *Client) Heartbeat(ctx context.Context, deviceID string, heartbeat entit
 	return nil
 }
 
-func (c *Client) GetConfiguration(ctx context.Context, deviceID string) (entity.DeviceConfigurationMessage, error) {
-	if !bytes.Equal(c.certificateSignature, c.certManager.Signature()) {
-		c.conn.Close()
-		c.dial()
-	}
-
+func (c *client) GetConfiguration(ctx context.Context, deviceID string) (entity.DeviceConfigurationMessage, error) {
 	ctx = c.addDeviceIdToContext(ctx, deviceID)
 
 	conf, err := c.edgeClient.GetConfiguration(ctx, &grpcEdge.ConfigurationRequest{DeviceId: deviceID})
@@ -160,6 +136,7 @@ func (c *Client) GetConfiguration(ctx context.Context, deviceID string) (entity.
 			if strings.Contains(status.Message(), "authentication handshake failed") {
 				return entity.DeviceConfigurationMessage{}, controller.ErrTlsHandshakeFailed
 			}
+			zap.S().Errorf("unable to get configuration: %v", status)
 			return entity.DeviceConfigurationMessage{}, controller.ErrUnknown
 		}
 		return entity.DeviceConfigurationMessage{}, nil
@@ -167,22 +144,15 @@ func (c *Client) GetConfiguration(ctx context.Context, deviceID string) (entity.
 	return MapConfigurationResponse(conf), nil
 }
 
-func (c *Client) dial() error {
+func (c *client) dial(addr string, tlsConfig *tls.Config) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-
-	tlsConfig, err := c.certManager.TLSConfig()
-	if err != nil {
-		return err
-	}
-
-	c.certificateSignature = c.certManager.Signature()
 
 	tlsTransport := credentials.NewTLS(tlsConfig)
 
 	var opts []grpc.DialOption
 	opts = append(opts, grpc.WithTransportCredentials(tlsTransport))
-	conn, err := grpc.Dial(c.serverAddress, opts...)
+	conn, err := grpc.Dial(addr, opts...)
 	if err != nil {
 		return err
 	}
@@ -191,6 +161,6 @@ func (c *Client) dial() error {
 	return nil
 }
 
-func (c *Client) addDeviceIdToContext(ctx context.Context, deviceID string) context.Context {
+func (c *client) addDeviceIdToContext(ctx context.Context, deviceID string) context.Context {
 	return metadata.AppendToOutgoingContext(ctx, "device_id", deviceID)
 }

@@ -19,6 +19,7 @@ import (
 var (
 	ErrAuthorizationDenied = errors.New("authorization denied")
 	ErrTlsHandshakeFailed  = errors.New("tls handshake failed")
+	ErrNotConnected        = errors.New("not connected")
 	ErrUnknown             = errors.New("unknown error")
 )
 
