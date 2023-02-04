@@ -19,6 +19,7 @@ import (
 var (
 	ErrAuthorizationDenied = errors.New("authorization denied")
 	ErrTlsHandshakeFailed  = errors.New("tls handshake failed")
+	ErrUnknown             = errors.New("unknown error")
 )
 
 //go:generate mockgen -package=edge -destination=mock_client.go --build_flags=--mod=mod . Client
@@ -180,7 +181,7 @@ func (c *Controller) run(ctx context.Context) {
 
 			if err := g.Wait(); err != nil {
 				zap.S().Errorf("Error during op: %s", err)
-				if errors.Is(err, ErrAuthorizationDenied) || errors.Is(err, ErrTlsHandshakeFailed) {
+				if errors.Is(err, ErrAuthorizationDenied) || (errors.Is(err, ErrUnknown) && c.certManager.HaveDeviceCertificate()) {
 					zap.S().Info("restart the registration process again")
 					ticker.Reset(2 * time.Second)
 					// rollback to registration certificate

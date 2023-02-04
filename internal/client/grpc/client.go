@@ -67,6 +67,7 @@ func (c *Client) Enrol(ctx context.Context, deviceID string, enrolInfo entity.En
 			if strings.Contains(status.String(), "authentication handshake failed") {
 				return fmt.Errorf("authorization denied %s: %w", err, controller.ErrAuthorizationDenied)
 			}
+			return controller.ErrUnknown
 		}
 		return err
 	}
@@ -97,7 +98,7 @@ func (c *Client) Register(ctx context.Context, deviceID string, registerInfo ent
 		if ok && status.Code() == codes.PermissionDenied {
 			return entity.RegistrationResponse{}, fmt.Errorf("authorization denied %s: %w", status.Message(), controller.ErrAuthorizationDenied)
 		}
-		return entity.RegistrationResponse{}, err
+		return entity.RegistrationResponse{}, fmt.Errorf("%w %s", controller.ErrUnknown, err.Error())
 	}
 
 	return entity.RegistrationResponse{SignedCSR: []byte(resp.GetCertificate())}, nil
@@ -131,9 +132,10 @@ func (c *Client) Heartbeat(ctx context.Context, deviceID string, heartbeat entit
 			if status.Code() == codes.PermissionDenied {
 				return fmt.Errorf("authorization denied %s: %w", status.Message(), controller.ErrAuthorizationDenied)
 			}
-			if strings.Contains(status.Message(), "authentication handshake failed") {
+			if strings.Contains(status.Message(), "failed to verify client certificate") {
 				return controller.ErrTlsHandshakeFailed
 			}
+			return controller.ErrUnknown
 		}
 		return err
 	}
@@ -158,6 +160,7 @@ func (c *Client) GetConfiguration(ctx context.Context, deviceID string) (entity.
 			if strings.Contains(status.Message(), "authentication handshake failed") {
 				return entity.DeviceConfigurationMessage{}, controller.ErrTlsHandshakeFailed
 			}
+			return entity.DeviceConfigurationMessage{}, controller.ErrUnknown
 		}
 		return entity.DeviceConfigurationMessage{}, nil
 	}
